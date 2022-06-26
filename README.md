@@ -157,21 +157,56 @@ set LESSCHARSET=utf-8
   git remote add gitee-origin git@gitee.com:ljp95/GoodCoder.git 
   ```
 
-- ⑤ 编写上传脚步（win平台）
+- ⑤ 编写上传脚步：win平台若有编码问题，参见：[Bat脚步中文乱码问题](#Bat脚步中文乱码)
 
-  - 若有编码问题，参见：[Bat脚步中文乱码问题](#Bat脚步中文乱码)
+  - Win：https://www.imooc.com/wenda/detail/606826（FFIVE的答案）；[批处理中setlocal enabledelayedexpansion](https://www.jb51.net/article/29323.htm)
 
   ```bash
+  :: win-bat
   git add .
-  git commit -m "日常更新"
+  
+  set "commit=%~1"
+  setlocal EnableDelayedExpansion
+  if "!commit!"==""  (
+  	git commit -m "日常更新"
+  ) else (
+  	git commit -m %1
+  )
+  
   git push github-origin main
   git push gitee-origin main
   pause
   ```
+  
+  - Unix：[尝试实现bat中pause功能](https://blog.csdn.net/weixin_36254379/article/details/116821423)
+  
+  ```shell
+  # mac/linux-shell
+  git add .
+  
+  if [ -z "$1" ]; then
+      git commit -m "日常更新"
+      else
+          git commit -m $1
+  fi
+  
+  git push github-origin main
+  git push gitee-origin main
+  echo 请按任意键继续. . .
+  read -n 1
+  ```
+  
+- ⑥ 实际使用：若win平台要运行shell脚步，需安装『Git Bash』（[并将git的cmd目录配置到环境变量中](https://www.cnblogs.com/woods1815/p/11026658.html)）
+
+  ```shell
+  # Win平台；若不写commit，则默认为“日常更新”
+  .\quickUpload.bat "bat脚步更新"
+  
+  # 全平台；若不写commit，则默认为“日常更新”
+  .\quickUpload.sh "shell脚步更新"
+  ```
 
   
-
-
 
 
 
