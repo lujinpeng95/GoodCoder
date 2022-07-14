@@ -79,17 +79,14 @@
 
   
 
-- win端：[git报错bad signature和index file corrupt的处理方法](https://blog.csdn.net/weixin_36995355/article/details/89509632)
+- 【有误】win端：[git报错bad signature和index file corrupt的处理方法](https://blog.csdn.net/weixin_36995355/article/details/89509632)
+
+  - 博客中的方法（reset），会重置全部git设置，远端分支名称也会被重置；并且会导致各种文件错误
+
 
 ![image-20220714095002327](https://mdpic01-1306646166.cos.ap-shanghai.myqcloud.com/mdPic/image-20220714095002327.png)
 
-```shell
-rm .git/index
 
-git read-tree
-// 或者
-git reset
-```
 
 
 
