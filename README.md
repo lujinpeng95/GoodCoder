@@ -75,9 +75,11 @@
 
 ##### 多端同步git报错
 
-- mac端：[解决 fatal: Not a git repository (or any of the parent directories): .git 问题](https://blog.csdn.net/wenb1bai/article/details/89363588) （`git init` ）
+- mac端：[解决 fatal: Not a git repository (or any of the parent directories): .git 问题](https://blog.csdn.net/wenb1bai/article/details/89363588) 
 
-  
+  ```
+  git init
+  ```
 
 - 【有误】win端：[git报错bad signature和index file corrupt的处理方法](https://blog.csdn.net/weixin_36995355/article/details/89509632)
 
