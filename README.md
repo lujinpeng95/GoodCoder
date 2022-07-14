@@ -73,6 +73,26 @@
 
 #### 常见问题
 
+##### 多端同步git报错
+
+- mac端：[解决 fatal: Not a git repository (or any of the parent directories): .git 问题](https://blog.csdn.net/wenb1bai/article/details/89363588) （`git init` ）
+
+  
+
+- win端：[git报错bad signature和index file corrupt的处理方法](https://blog.csdn.net/weixin_36995355/article/details/89509632)
+
+![image-20220714095002327](https://mdpic01-1306646166.cos.ap-shanghai.myqcloud.com/mdPic/image-20220714095002327.png)
+
+```shell
+rm .git/index
+
+git read-tree
+// 或者
+git reset
+```
+
+
+
 ##### 上传文件失败
 
 - 报错信息：[error: src refspec xxx does not match any / error: failed to push some refs to](https://blog.csdn.net/u014361280/article/details/109703556)
