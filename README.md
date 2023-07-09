@@ -9,6 +9,30 @@
 - GitHub：https://github.com/lujinpeng95/GoodCoder
 - Gitee：https://gitee.com/ljp95/GoodCoder
 
+使用步骤
+
+```shell
+# 第一次拉取项目
+git clone xxx
+ 
+# 每次都拉取下最新更新
+git pull
+# 修改文件后执行脚步上传到两个托管平台
+# Win平台；若不写commit，则默认为“日常更新”
+.\quickUpload.bat "bat脚步更新"
+# 全平台；若不写commit，则默认为“日常更新”
+.\quickUpload.sh "shell脚步更新"
+```
+
+初始化项目，并同时托管两个平台的具体方法如下
+
+【注】比较关键的步骤是
+
+```shell
+git remote add github-origin git@github.com:lujinpeng95/GoodCoder.git
+git remote add gitee-origin git@gitee.com:ljp95/GoodCoder.git 
+```
+
 
 
 ### 1-1 Git设置
