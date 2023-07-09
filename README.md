@@ -26,6 +26,13 @@ git pull
 
 初始化项目，并同时托管两个平台的具体方法如下
 
+【注】比较关键的步骤是
+
+```shell
+git remote add github-origin git@github.com:lujinpeng95/GoodCoder.git
+git remote add gitee-origin git@gitee.com:ljp95/GoodCoder.git 
+```
+
 
 
 ### 1-1 Git设置
