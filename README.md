@@ -1,7 +1,5 @@
 # GoodCoder
 
-test
-
 ## 01 项目说明与基础设置
 
 用途：用于记录日常学习笔记，同时同步至GitHub、Gitee两个托管平台
