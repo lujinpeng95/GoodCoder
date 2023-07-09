@@ -24,14 +24,22 @@ git pull
 .\quickUpload.sh "shell脚步更新"
 ```
 
-初始化项目，并同时托管两个平台的具体方法如下
+初始化项目，并同时托管两个平台的具体方法如下小标题所述
 
-【注】比较关键的步骤是
+【注1】比较关键的步骤是
 
 ```shell
 git remote add github-origin git@github.com:lujinpeng95/GoodCoder.git
 git remote add gitee-origin git@gitee.com:ljp95/GoodCoder.git 
 ```
+
+【注2】同步的命令中，用了强制push（即"-f"选项）。如下小标题中设置的本质，是拉取了某**一个**仓库的代码，然后始终让**两个**仓库的提交树保持一致。如果两个仓库因为一些原因，有了不同的提交记录，会报错导致无法提交（“[远程分支上存在本地分支中不存在的提交](https://segmentfault.com/q/1010000002736986)”），而`git pull`还是只是针对其中的**某一个**仓库操作，所以只能用强制提交命令
+
+```shell
+git push -f github-origin main
+```
+
+
 
 
 
@@ -216,8 +224,8 @@ set LESSCHARSET=utf-8
   	git commit -m %1
   )
   
-  git push github-origin main
-  git push gitee-origin main
+  git push -f github-origin main
+  git push -f gitee-origin main
   pause
   ```
   
@@ -233,8 +241,8 @@ set LESSCHARSET=utf-8
           git commit -m $1
   fi
   
-  git push github-origin main
-  git push gitee-origin main
+  git push -f github-origin main
+  git push -f gitee-origin main
   echo 请按任意键继续. . .
   read -n 1
   ```
