@@ -9,6 +9,6 @@ if "!commit!"==""  (
 	git commit -m %1
 )
 
-git push github-origin main
-git push gitee-origin main
+git push -f github-origin main
+git push -f gitee-origin main
 pause
