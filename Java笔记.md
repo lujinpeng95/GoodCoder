@@ -20,6 +20,80 @@ Option + 左右箭头：移动一个单词（部分机器无效)
 
 
 
+## 查看机器情况
+
+### 硬件
+
+![Linux查看物理CPU个数、核数、逻辑CPU个数_Linux_04](Java笔记.assets/resize,m_fixed,w_1184)
+
+参考资料：https://blog.51cto.com/u_15127593/2804087
+
+- 总核数 = 物理CPU个数 X 每颗物理CPU的核数
+- 总逻辑CPU数 = 物理CPU个数 X 每颗物理CPU的核数 X 超线程数
+
+```shell
+# 查看CPU信息命令
+cat /proc/cpuinfo
+
+# 查看物理CPU个数【主机插槽中CPU 个数】
+cat /proc/cpuinfo| grep "physical id"| sort| uniq| wc -l
+
+# 查看每个物理CPU中core的个数(即核数)【CPU 核数 --- 物理线程】
+cat /proc/cpuinfo| grep "cpu cores"| uniq
+
+# 每个物理 cpu的逻辑处理数个数【intel 超线程技术 --- 逻辑CPU个数】
+cat /proc/cpuinfo| grep "core id"| sort| uniq
+
+# 查看逻辑CPU的个数
+cat /proc/cpuinfo| grep "processor"| wc -l
+
+# 查看CPU信息（型号）
+cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c
+
+# 查看内存信息
+cat /proc/meminfo
+```
+
+
+
+### 性能
+
+CPU 负载
+
+```shell
+top
+```
+
+![image-20230717144901200](Java笔记.assets/image-20230717144901200.png)
+
+- 当前时间【14:48:51】、机器运行时长【up 125 days, 21:21】、用户数量【1 user】、CPU 在1min/5min/15min内的**平均负载**情况（即被使用的核心 core 数量）【load average: 0.41, 0.19, 0.19】
+- 内存使用情况，总内存【Mem: 16267916k total】、已使用内存【10685704k used】、空闲内存【5582212k free】、用作 OS 内核缓冲区内存大小【557892k buffers】
+
+
+
+磁盘 IO & 网络流量
+
+```shell
+# 每秒中存储 IO 吞吐量（读/写数据量）--- 一般极限为上百 MB
+dstat -d
+
+# 每秒的随机磁盘读取次数（读IOPS和写IOPS -- per sencond）--- 一般极限为200~300次
+dstat -r
+
+# 每秒钟网卡接收/发送流量有多少kb --- 千兆网卡的总流量在100MB 左右（或更低）
+dstat -n
+```
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## 查看文件内容
