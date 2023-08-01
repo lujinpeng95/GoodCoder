@@ -12,6 +12,7 @@
 使用步骤
 
 ```shell
+# 前提：新建的项目在gitee、github两个平台均初始化完成了，且分支按【注1】中进行了设置（可以检查下 git branch 是否为main，保证项目完成了初始化）
 # 第一次拉取项目
 git clone xxx
  
