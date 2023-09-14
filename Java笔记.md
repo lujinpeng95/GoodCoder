@@ -191,7 +191,10 @@ mvn clean package install -DMaven.test.skip=true -DskipTests
 - 项目 `xxx-audit` pom 继承**父pom** `xxx-framework`，其父pom中ES版本为6.x；
 - 全部模块 `xxx-task-core` 、`xxx-task-manager` 等继承项目**父pom**  `xxx-audit` pom ；
 - 其他项目模块 依赖模块 `xxx-task-core`。
-- 【问题】core模块排除掉 6.x 版本包，引入 7.x 版本ES包。但 依赖core模块的其他模块，其ES版本仍为 6.x版本（父pom的版本号无法通过依赖修改掉）
+- 【问题】core模块排除掉 6.x 版本包，引入 7.x 版本ES包。但 依赖core模块的**其他模块**，其ES版本仍为 6.x版本（父pom的版本号无法通过依赖修改掉）---- 只能通过修项目 pom，才能整体改变其他模块的包版本
+  - framework --- 项目pom ---- core --- api（只在 core 中排除包，api 还是项目 pom 中的包）
+  - Maven父pom中dependencyManagement版本优先级高于传递依赖版本
+
 
 ```xml
 <!--项目pom-->
@@ -205,7 +208,7 @@ mvn clean package install -DMaven.test.skip=true -DskipTests
 
 <parent>
   <groupId>com.xxx.xxx</groupId>
-  <!-- ES版本 6.x -->
+  <!-- 其中定义了ES版本 6.x -->
   <artifactId>xxx-framework</artifactId>
   <version>1.0.8.1</version>
 </parent>
@@ -215,7 +218,7 @@ mvn clean package install -DMaven.test.skip=true -DskipTests
   <module>xxx-task-core</module>
 </modules>
 
-
+---------------------------------------------------------------------------------------
 
 <!--core模块。继承项目父pom-->
 <artifactId>xxx-task-core</artifactId>
@@ -255,7 +258,7 @@ mvn clean package install -DMaven.test.skip=true -DskipTests
   </dependency>
 </dependencies>
 
-
+---------------------------------------------------------------------------------------
 
 <!--api模块。继承项目父pom、依赖core模块-->
 <artifactId>xxx-task-api</artifactId>
@@ -639,6 +642,15 @@ public class CategoryNode {
     private Long categoryId;
 
 }
+
+
+// 嵌套build
+AuditAppInfo.<AuditVersionInfoDto>builder()
+  .appId(appId)
+  .appType(AppBuildTypeEnum.VISUALIZ.getCode().intValue())
+  .bizType(AuditTypeEnum.VISUALIZATION_VERSION_AUDIT.getType())
+  .content(AuditVersionInfoDto.builder().versionCode(versionCode).build())
+  .build()
 ```
 
 
@@ -693,14 +705,15 @@ public class CategoryNode {
 ```java
 package com.xxxx.core.base.entity;
 @Data
-@TableName(value = "audit_config")
-@ApiModel("审核平台配置")
+@TableName(value = "xxxxx")
+@ApiModel("xxxx")
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Accessors(chain = true)
 public class AuditConfig implements Serializable {
 
+  	@Serial
     private static final long serialVersionUID = 1L;
 
     /**
@@ -741,6 +754,25 @@ public class AuditConfigBaseServiceImpl extends ServiceImpl<AuditConfigMapper, A
 <mapper namespace="com.baidu.mapp.audit.core.base.mapper.AuditConfigMapper">
 
 </mapper>
+  
+  
+----------------------------------------------------------------------------------  
+// 查询
+LambdaQueryWrapper<AuditConfig> queryWrapper = Wrappers.lambdaQuery();
+queryWrapper.eq(AuditConfig::getType, type);
+queryWrapper.eq(AuditConfig::getConfigKey, key);
+queryWrapper.eq(AuditConfig::getIsDeleted, DeleteEnum.VALID.getCode());
+auditConfigMapper.selectOne(queryWrapper);
+
+
+// 更新
+LambdaUpdateWrapper<AuditTask> updateWrapper = Wrappers.lambdaUpdate();
+updateWrapper.eq(AuditTask::getId, taskId);
+updateWrapper.eq(AuditTask::getIsDeleted, DeleteEnum.VALID.getCode());
+updateWrapper.set(AuditTask::getPublishStatus, PublishStatusEnum.PUBLISHED.getCode());
+updateWrapper.set(AuditTask::getUpdator, CALLBACK_OPERATOR);
+updateWrapper.set(AuditTask::getUpdateTime, System.currentTimeMillis());
+auditTaskBaseService.update(updateWrapper);
 ```
 
 
@@ -2494,6 +2526,432 @@ public class Result<T> implements Serializable {
 
 
 
+## 分表设计
+
+每个线程存储一个 String，记录表后缀。每次查询前都更新后缀（MybatisPlus配置保障每次sql 操作后清空后缀记录）
+
+### 01 表信息-CouponBase
+
+suffix 为分表到具体的表序号
+
+```java
+@Data
+@TableName(value = "dr_coupon_base_{suffix}")
+public class CouponBase implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    @TableId(type = IdType.ASSIGN_ID)
+    /**
+     * 主键id
+     */
+    private Long id;
+
+    /**
+     * 券码id，交易中台生成
+     */
+    private String couponId;
+
+    /**
+     * 券码code，交易中台生成
+     * 【这个注解的方式废弃】
+     */
+    @SplitTableKey
+    private String couponCode;
+}
+```
+
+
+
+### 02 配置：表名与分表数量-SplitTableConfig
+
+```java
+package com.baidu.mapp.dorich.coupon.db.config;
+
+import com.baomidou.mybatisplus.core.metadata.TableInfo;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.core.toolkit.StringPool;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * 分表配置类，指定表名与 表的分表数量
+ * <p>
+ * 通过 mybatis-plus 的 ${code TableInfoHelper} 查询绑定的 class.
+ *
+ * @author xuwenping
+ */
+@Configuration
+public class SplitTableConfig {
+
+    /**
+     * 分表配置项
+     * <p>
+     * key: 分表表名
+     * value: 分表表数目
+     */
+    private static final Map<String, Integer> TABLE_AMOUNT_MAP = new HashMap<>();
+
+    // 配置中心配置哪些表进行了分表，每个分表分成了多少张 
+    @Value("${mybatis.split.table}")
+    public void setTableAmountMap(String splitTableConfig) {
+        String[] pairs = splitTableConfig.split(StringPool.COMMA);
+        for (String pair : pairs) {
+            String[] arr = pair.split(StringPool.COLON);
+            TABLE_AMOUNT_MAP.put(arr[0], Integer.parseInt(arr[1]));
+        }
+    }
+
+    /**
+     * 获取分表数量配置 --- 通过entity 对象
+     *
+     * @param clazz Entry 对象
+     * @return
+     */
+    public static Integer getTableSplitAmount(Class<?> clazz) {
+        TableInfo tableInfo = TableInfoHelper.getTableInfo(clazz);
+
+        if (TABLE_AMOUNT_MAP.containsKey(tableInfo.getTableName())) {
+            return TABLE_AMOUNT_MAP.get(tableInfo.getTableName());
+        }
+        throw new RuntimeException("cannot find split table config " + clazz.getName());
+    }
+
+    /**
+     * 获取分表数量配置 --- 通过表名字符串
+     *
+     * @param tableName 表名
+     * @return
+     */
+    public static Integer getTableSplitAmount(String tableName) {
+        if (TABLE_AMOUNT_MAP.containsKey(tableName)) {
+            return TABLE_AMOUNT_MAP.get(tableName);
+        }
+        throw new RuntimeException("cannot find split table config " + tableName);
+    }
+
+    /**
+     * 判断是否进行了分表
+     *
+     * @param clazz Entry 对象
+     * @return
+     */
+    public static boolean checkTableSplit(Class<?> clazz) {
+        TableInfo tableInfo = TableInfoHelper.getTableInfo(clazz);
+        return TABLE_AMOUNT_MAP.containsKey(tableInfo.getTableName());
+    }
+
+    /**
+     * 判断是否进行了分表
+     *
+     * @param tableName
+     * @return
+     */
+    public static boolean checkTableSplit(String tableName) {
+        return TABLE_AMOUNT_MAP.containsKey(tableName);
+    }
+}
+
+```
+
+
+
+### 03 表后缀生成/获取-TableNameSuffixThreadLocal/SplitTableEntityBase
+
+- 存储位置：TreadLocal
+
+```java
+/**
+ * 分表逻辑上下文
+ *
+ * @author wangruoxiao
+ */
+public class TableNameSuffixThreadLocal {
+
+    private static final ThreadLocal<String> CURRENT_SUFFIX = new ThreadLocal<String>();
+
+    public static String getSuffix() {
+        return CURRENT_SUFFIX.get();
+    }
+
+    public static void setSuffix(String suffix) {
+        CURRENT_SUFFIX.set(suffix);
+    }
+
+    public static void clean() {
+        CURRENT_SUFFIX.remove();
+    }
+}
+```
+
+
+
+- 序号生成：【注意，业务场景可能出现连接的不止 java 环境，比如 go 服务，而 go 服务是没有hashCode 方法的，所以会替换为CRC32算法将字符串转换为数值】
+
+```java
+package com.baidu.mapp.dorich.coupon.db.entity;
+
+import java.util.zip.CRC32;
+
+import com.baidu.mapp.dorich.coupon.db.config.SplitTableConfig;
+import com.baidu.mapp.dorich.coupon.db.config.TableNameSuffixThreadLocal;
+
+/**
+ * 分表 table 统一继承 Base
+ *
+ * @author xuwenping
+ */
+public interface SplitTableEntityBase {
+
+    /**
+     * 设置分表名称
+     *
+     * @param key 分表键
+     */
+    @Deprecated
+    default void setTableName(String key) {
+        Long code = (long) key.hashCode();
+        TableNameSuffixThreadLocal.setSuffix(Math.abs(code) % SplitTableConfig.getTableSplitAmount(getClass()) + "");
+    }
+
+    /**
+     * 设置分表后缀
+     *
+     * @param suffix 分表后缀
+     */
+    @Deprecated
+    default void setTableNameSuffix(Integer suffix) {
+        TableNameSuffixThreadLocal.setSuffix(String.valueOf(suffix));
+    }
+
+    /**
+     * 设置分表 table 后缀名 静态方法 --- 由指定字段的值（String格式）生成后缀
+     *
+     * @param clazz         表对应的实体
+     * @param shardingValue 分表键的值
+     */
+    static void setTableSuffix(Class<?> clazz, String shardingValue) {
+        // long code = shardingValue.hashCode();
+      	CRC32 crc = new CRC32();
+        crc.update(shardingValue.getBytes());
+        long code = crc.getValue();
+      
+        TableNameSuffixThreadLocal.setSuffix(Math.abs(code) % SplitTableConfig.getTableSplitAmount(clazz) + "");
+    }
+
+    /**
+     * 设置分表 table 后缀名 静态方法 --- 直接写表后缀
+     *
+     * @param suffix 设置分表 table 后缀名
+     */
+    static void setTableSuffix(Integer suffix) {
+        TableNameSuffixThreadLocal.setSuffix(String.valueOf(suffix));
+    }
+
+    /**
+     * 清理分表键 ThreadLocal 的值
+     */
+    static void cleanTableSuffix() {
+        TableNameSuffixThreadLocal.clean();
+    }
+
+}
+```
+
+
+
+### 04 表名替换-MybatisPlusConfig
+
+```java
+@Configuration
+@EnableConfigurationProperties(MybatisProperties.class)
+public class MybatisPlusConfig {
+
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+
+    @DependsOn({"sqlMonitorInterceptor"})
+    @Bean
+    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        DynamicTableNameInnerInterceptor dynamicTableNameInnerInterceptor = new DynamicTableNameInnerInterceptor();
+        TableNameHandler tableNameHandler = new TableNameHandler() {
+            @Override
+            public String dynamicTableName(String sql, String tableName) {
+                // 是否进行了分表设计
+                if (SplitTableConfig.checkTableSplit(tableName)) {
+                    // 从 threadLocal 里面获取表后缀
+                    String suffix = TableNameSuffixThreadLocal.getSuffix();
+                    // 清除后缀，用于下一次填充
+                    TableNameSuffixThreadLocal.clean();
+                    logger.info("replace table:{}, suffix:{}", tableName, suffix);
+                    return tableName.replace("{suffix}", suffix);
+                } else {
+                    return tableName;
+                }
+            }
+        };
+        dynamicTableNameInnerInterceptor.setTableNameHandler(tableNameHandler);
+        interceptor.addInnerInterceptor(dynamicTableNameInnerInterceptor);
+
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        return interceptor;
+    }
+
+
+
+    @Bean
+    public SqlMonitorInterceptor sqlMonitorInterceptor(MybatisProperties mybatisProperties) {
+        SqlMonitorInterceptor interceptor = new SqlMonitorInterceptor();
+        Properties properties = new Properties();
+        properties.setProperty("show_sql", mybatisProperties.getShowSql());
+        interceptor.setProperties(properties);
+        return interceptor;
+    }
+}
+```
+
+
+
+### 05 使用示例
+
+```java
+// 获取表 entity数量、用于分表的字段，得到表后缀
+SplitTableEntityBase.setTableSuffix(CouponOperation.class, expenseDetail.getCouponId());
+// sql语句
+LambdaQueryWrapper<CouponOperation> couponOperationQueryWrapper = new LambdaQueryWrapper<>();
+... ...
+List<CouponOperation> operations = couponOperationService.list(couponOperationQueryWrapper);
+
+// 修改当前线程的表后缀
+SplitTableEntityBase.setTableSuffix(Integer.valueOf(eventDay));
+incomeDetails = incomeDetailService.list(incomeQueryWrapper);
+```
+
+
+
+### 废弃的方法
+
+仅仅是使用地方，设置后缀方法有区别（废弃的方法，要把 mybatis plus中的代码都重写一遍，调用setTableName方法）
+
+- 定义注解
+
+```java
+/**
+ * 分表键
+ *
+ * @author xuwenping
+ */
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.FIELD})
+@Documented
+@Deprecated
+public @interface SplitTableKey {
+}
+```
+
+- 要分表的entity 实现 SplitTableEntityBase（同上提到的）
+
+```java
+@Data
+@TableName(value = "dr_coupon_base_{suffix}")
+public class CouponBase implements Serializable, SplitTableEntityBase {
+
+    private static final long serialVersionUID = 1L;
+
+    @TableId(type = IdType.ASSIGN_ID)
+    /**
+     * 主键id
+     */
+    private Long id;
+
+    /**
+     * 券码code，交易中台生成
+     */
+    @SplitTableKey
+    private String couponCode;
+}
+```
+
+- 所有分表的 service，继承 SplitTableServiceImpl类
+
+```java
+/**
+ * 分表实现逻辑处理，需要使用分表的 Server 选择继承该类.
+ *
+ * @param <M>
+ * @param <T>
+ */
+public class SplitTableServiceImpl<M extends BaseMapper<T>, T> extends ServiceImpl<M, T> {
+
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+
+    protected void setTableName(T entity) {
+        if (entity instanceof SplitTableEntityBase) {
+            SplitTableEntityBase splitTableEntityBase = (SplitTableEntityBase) entity;
+            Field[] fields = entity.getClass().getDeclaredFields();
+            for (Field field : fields) {
+                SplitTableKey splitTableKey = field.getAnnotation(SplitTableKey.class);
+                if (splitTableKey != null) {
+                    try {
+                        field.setAccessible(true);
+                        Object obj = field.get(entity);
+                        splitTableEntityBase.setTableName(obj.toString());
+                    } catch (IllegalAccessException e) {
+                        // 异常不影响主要流程
+                        logger.error("set table name failed. entry:{}", entity, e);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    @Override
+    public boolean save(T entity) {
+        setTableName(entity);
+        return super.save(entity);
+    }
+
+}
+
+
+
+--------------------------------------------------------------------------------------------------
+  
+public interface CouponBaseService extends IService<CouponBase> {
+}
+
+
+ * 券码基础表服务类
+ *
+ */
+@Service
+public class CouponBaseServiceImpl extends SplitTableServiceImpl<CouponBaseMapper, CouponBase>
+        implements CouponBaseService {
+
+}
+```
+
+- 具体使用
+
+```java
+// 此步可省，因为已经重写了 mybatis 的 save 方法。如果其他没有重写的方法，则需要
+// couponBaseService.setTableName(couponBase);
+
+// 如果已经知道要使用那个哪个字段，就每次必要通过注解遍历找到，直接这样写就可以 --- 不如上面的方法了（上面方法还不用重写 save 等方法）
+SplitTableEntityBase.setTableSuffix(CouponBase.class, couponBase.getCouponCode());
+couponBaseService.save(couponBase);
+```
+
+
+
+
+
+
+
 
 
 ## bean生成不同对象
@@ -2573,6 +3031,50 @@ public class Result<T> implements Serializable {
   ```
 
   
+
+## 用于测试-直接访问接口
+
+```java
+
+
+String urlString = "http://tianlu.baidu-int.com/proxy/tianlu";
+HttpClient httpClient = HttpClients.createDefault();
+HttpPost httpPost = new HttpPost(urlString);
+
+// 构建 JSON 请求体内容
+String jsonRequestBody = "{\n" +
+  "    \"serviceId\": \"mapp-maindata_ContainerInfoApi_getContainerInfoByCond\",\n" +
+  "    \"params\": {\n" +
+  "        \"arg0\": {\"auditStatus\": 3}\n" +
+  "    }\n" +
+  "}";
+
+// 设置请求体内容
+StringEntity entity = new StringEntity(jsonRequestBody, ContentType.APPLICATION_JSON);
+httpPost.setEntity(entity);
+
+// 设置请求头
+httpPost.setHeader("Content-Type", "application/json");
+httpPost.setHeader("x-token", "dGlhbmx1LXByb3h5Ok1aZ3ZIYXlzK2dSd3lpc1h2N1ByT3c9PQ=="); // 添加其他头部信息
+
+// 执行 POST 请求
+HttpResponse response = httpClient.execute(httpPost);
+
+// 获取响应状态码
+int responseCode = response.getStatusLine().getStatusCode();
+System.out.println("Response Code: " + responseCode);
+
+// 读取响应内容
+HttpEntity responseEntity = response.getEntity();
+String responseBody = EntityUtils.toString(responseEntity);
+System.out.println("Response Body: " + responseBody);
+
+TianluResponse<List<ContainerInfoResponseDto>> res = GsonUtils.GSON.fromJson(
+  responseBody,
+  new TypeToken<TianluResponse<List<ContainerInfoResponseDto>>>() {}.getType()
+);
+List<ContainerInfoResponseDto> dtos = res.getData();
+```
 
 
 

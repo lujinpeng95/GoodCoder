@@ -1,0 +1,9 @@
+项目梳理：
+天眼、多利熊
+
+技术栈：
+Kafka、ElasticSearch；SpringBoot
+Redis
+
+八股：
+数据一致性（不重不漏）、高并发
