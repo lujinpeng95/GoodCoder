@@ -210,7 +210,7 @@ set LESSCHARSET=utf-8
   git remote add gitee-origin git@gitee.com:ljp95/GoodCoder.git 
   ```
 
-- ⑤ 编写上传脚步：win平台若有编码问题，参见：[Bat脚步中文乱码问题](#Bat脚步中文乱码) 【**注意，脚本中分支用的main，有些项目默认生产的分支是master**】
+- ⑤ 编写上传脚步：win平台若有编码问题，参见：[Bat脚步中文乱码问题](#Bat脚步中文乱码) 【**注意，脚本中本地分支用的main，有些项目默认生产的分支是master**】
 
   - Win：https://www.imooc.com/wenda/detail/606826（FFIVE的答案）；[批处理中setlocal enabledelayedexpansion](https://www.jb51.net/article/29323.htm)
 
