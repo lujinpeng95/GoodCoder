@@ -7,3 +7,6 @@ Redis
 
 八股：
 数据一致性（不重不漏）、高并发
+
+SpringBoot + SpringMVC + MyBatis + MySQL + Tomcat + 设计模式
+复杂业务的理解、开发流程+项目管理

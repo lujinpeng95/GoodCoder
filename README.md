@@ -12,10 +12,11 @@
 使用步骤
 
 ```shell
-# 前提：新建的项目在gitee、github两个平台均初始化完成了，且分支按【注1】中进行了设置（可以检查下 git branch 是否为main，保证项目完成了初始化）
+# 前提：新建的项目在gitee、github两个平台均初始化完成了
 # 第一次拉取项目
 git clone xxx
  
+# 前提：分支按【注1】中进行了设置（可以检查下 git branch 是否为main，保证项目完成了初始化） 
 # 每次都拉取下最新更新
 git pull
 # 修改文件后执行脚步上传到两个托管平台
@@ -27,7 +28,7 @@ git pull
 
 初始化项目，并同时托管两个平台的具体方法如下小标题所述
 
-【注1】比较关键的步骤是
+【注1】比较关键的步骤是：clone一个项目后，打开项目，终端输入如下命令
 
 ```shell
 git remote add github-origin git@github.com:lujinpeng95/GoodCoder.git
@@ -209,7 +210,7 @@ set LESSCHARSET=utf-8
   git remote add gitee-origin git@gitee.com:ljp95/GoodCoder.git 
   ```
 
-- ⑤ 编写上传脚步：win平台若有编码问题，参见：[Bat脚步中文乱码问题](#Bat脚步中文乱码)
+- ⑤ 编写上传脚步：win平台若有编码问题，参见：[Bat脚步中文乱码问题](#Bat脚步中文乱码) 【**注意，脚本中分支用的main，有些项目默认生产的分支是master**】
 
   - Win：https://www.imooc.com/wenda/detail/606826（FFIVE的答案）；[批处理中setlocal enabledelayedexpansion](https://www.jb51.net/article/29323.htm)
 

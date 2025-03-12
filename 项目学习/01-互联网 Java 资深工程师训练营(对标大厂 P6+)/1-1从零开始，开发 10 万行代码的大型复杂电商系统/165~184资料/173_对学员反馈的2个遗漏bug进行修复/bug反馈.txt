@@ -1,4 +1,0 @@
-
-1、评论中心的文件上传，路径处理有bug
-
-2、BeanCopierUtils并发bug

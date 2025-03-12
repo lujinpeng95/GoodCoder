@@ -56,6 +56,39 @@ cat /proc/meminfo
 
 
 
+### 系统信息
+
+```shell
+# 系统详情
+$ lsb_release -a
+LSB Version:	:core-4.1-amd64:core-4.1-noarch
+Distributor ID:	CentOS
+Description:	CentOS Linux release 7.9.2009 (Core)
+Release:	7.9.2009
+Codename:	Core
+
+# linux 发行版本【系统。第二个命令更准】
+$ cat /etc/issue
+CentOS release 7.5 (Final)
+Kernel \r on an \m
+$ cat /etc/redhat-release
+CentOS Linux release 7.9.2009 (Core)
+
+# linux 内核版本信息
+$ cat /proc/version
+Linux version 3.10.0-1160.36.2.el7.x86_64 (mockbuild@kbuilder.bsys.centos.org) (gcc version 4.8.5 20150623 (Red Hat 4.8.5-44) (GCC) ) #1 SMP Wed Jul 21 11:57:15 UTC 2021
+$ uname -a
+Linux instance-1aci6cu1-1 3.10.0-1160.36.2.el7.x86_64 #1 SMP Wed Jul 21 11:57:15 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux
+
+# 当前系统位数
+$ getconf LONG_BIT
+64
+```
+
+
+
+
+
 ### 性能
 
 CPU 负载
@@ -86,16 +119,6 @@ dstat -n
 
 
 
-
-
-
-
-
-
-
-
-
-
 ## 查看文件内容
 
 ```shell
@@ -104,6 +127,11 @@ less +GG -N error.log
 q：退出
 b：往前翻页
 f：往后翻页
+
+# vim操作
+# 文末
+- 在正常模式下，按下大写字母 G（Shift + g）可以将光标移动到文本的最后一行。
+- 按下 : 进入底行命令模式，然后输入 $ 并按回车，即 :$，可以将光标移动到文本的最后一行。
 
 # 关键词搜索（如搜索『JVM』）
 cat info.log | grep JVM -b3 --color
@@ -124,6 +152,12 @@ df -h
 free
 # 查看当前目录文件大小
 du -sh *
+# 查看隐藏文件大小
+du -sh .[!.]*
+# 按占用空间排序
+du -sh .[!.]* * | sort -hr
+# 查看隐藏文件
+echo .[!.]* 
 ```
 
 
@@ -133,9 +167,15 @@ du -sh *
 - 查看java进程
 
 ```shell
+# java项目
 jps -l
 jps -ml | grep "tianyan-stream-1.0.0-SNAPSHOT.jar"
-ps -ef | grep java
+ps -ef | grep --color java 或者 ps -aux |grep java
+# 根据进程 id
+ps -aux |grep -v grep|grep PID_NUM
+# 根据端口号
+lsof -i:端口
+
 top
 ```
 
@@ -723,27 +763,20 @@ public class AuditConfig implements Serializable {
     private Long id;
 }
 
----------------------------------------------------------------------------------------------------
-package com.xxxxx.core.base.mapper;
-@Mapper
-public interface AuditConfigMapper extends BaseMapper<AuditConfig> {
-}
-
 ------------------------------------------------------------------------------------------------  
 package com.xxxx.core.service.base;
+
+// 基础语句service集成
 public interface AuditConfigBaseService extends IService<AuditConfig> {
   
 }
 
-------------------------------------------------------------------------------------------------
-package com.xxxx.core.service.base.impl;
-@Service
-@Slf4j
-public class AuditConfigBaseServiceImpl extends ServiceImpl<AuditConfigMapper, AuditConfig>
-        implements AuditConfigBaseService {
-  
-  	@Resource
-    private AuditConfigMapper auditConfigMapper;
+---------------------------------------------------------------------------------------------------
+package com.xxxxx.core.base.mapper;
+
+// 基础语句mapper集成
+@Mapper
+public interface AuditConfigMapper extends BaseMapper<AuditConfig> {
 }
 
 ------------------------------------AuditConfigMapper----------------------------------------------
@@ -754,6 +787,19 @@ public class AuditConfigBaseServiceImpl extends ServiceImpl<AuditConfigMapper, A
 <mapper namespace="com.baidu.mapp.audit.core.base.mapper.AuditConfigMapper">
 
 </mapper>
+  
+------------------------------------------------------------------------------------------------
+package com.xxxx.core.service.base.impl;
+
+// 自己集成各种基础操作
+@Service
+@Slf4j
+public class AuditConfigBaseServiceImpl extends ServiceImpl<AuditConfigMapper, AuditConfig>
+        implements AuditConfigBaseService {
+  
+  	@Resource
+    private AuditConfigMapper auditConfigMapper;
+}
   
   
 ----------------------------------------------------------------------------------  
@@ -1340,6 +1386,24 @@ public static void initLocal() {
   }
 }
 ```
+
+
+
+## 分布式锁
+
+https://blog.csdn.net/TJtulong/article/details/106560962
+
+### Mysql实现
+
+某个字段设置为唯一key，执行操作则新增一条数据，执行完毕删除该数据。执行失败代表锁被占用
+
+- 缺点：无锁失效操作，可 job 定式清理
+
+
+
+### Redis实现
+
+
 
 
 
@@ -3538,4 +3602,230 @@ public class ObjectUtils {
 
 
 ### 时间工具类
+
+
+
+
+
+# 常用技术
+
+## ELK
+
+官网地址：https://www.elastic.co/guide/cn/elasticsearch/guide/current/running-elasticsearch.html
+
+
+
+![image-20240205181823834](https://mdpic01-1306646166.cos.ap-shanghai.myqcloud.com/mdPic/image-20240205181823834.png)
+
+### 安装
+
+- ES安装：版本太高的话，配套的Kibana（版本同es）需要的gcc版本也会更高。厂里目前（2022.12.01）推荐的是7.4.x版本
+  - 【add】gcc安装：gcc镜像 - https://blog.csdn.net/mnmiaoyi/article/details/98847144 ；glibc - https://www.kancloud.cn/noahs/linux/1116445 ；glibcxx - https://tech1024.com/original/3021 / https://tech1024.com/original/3021 ；gcc - https://www.mytecdb.com/blogDetail.php?id=21
+
+```shell
+# 创建一个目录，用于安装es（或安装在某个统一目录里，kibana下同）
+mkdir elk
+
+# 拉取es包
+wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.4.2-linux-x86_64.tar.gz --no-check-certificate
+
+# 解压包
+tar -zxvf elasticsearch-7.4.2-linux-x86_64.tar.gz
+
+# 重命名解压后的目录
+mv elasticsearch-7.4.2-linux-x86_64 elasticsearch
+
+# 配置修改（操作接上）：用于外网访问，默认端口是9200，可能被外网访问屏蔽，需修改端口号
+cd elasticsearch
+
+## 【如果不知道安装目录，可以用这种方法】查找配置文件位置
+#sudo find / -name elasticsearch.yml
+## 查询到位置后，修改该位置下的yml文件内容
+#vim xxx/elasticsearch.yml
+
+vim config/elasticsearch.yml
+# 填入以下内容并保存
+network.host: 0.0.0.0 # 接收指定ip的请求。0.0.0.0则响应所有网络接口上的请求
+http.port: 8891	# elasticsearch服务端口号
+discovery.seed_hosts: ["127.0.0.1"]	# 集群ip
+cluster.initial_master_nodes: ["node-1"]	# 初始主结点
+
+
+# 启动服务（目录地址接上）--- 服务端
+./bin/elasticsearch
+
+# 访问服务 --- 客户端
+curl 'http://localhost:8891/?pretty'
+```
+
+- kibana安装（https://segmentfault.com/a/1190000022196310）：一般Kibana要求比ES版本低一到两个版本
+  - 启动相关文档：https://cloud.tencent.com/developer/ask/sof/34518 （新版本不用借助sense插件）
+
+```shell
+# 安装包
+wget https://artifacts.elastic.co/downloads/kibana/kibana-7.4.2-linux-x86_64.tar.gz --no-check-certificate
+
+# 解压包
+tar -zxvf kibana-7.4.2-linux-x86_64.tar.gz
+
+# 重命名解压后的目录
+mv kibana-7.4.2-linux-x86_64 kibana
+
+# 配置修改（操作接上）
+cd kibana
+
+## 查找配置文件位置
+#sudo find / -name kibana.yml
+## 查询到位置后，修改该位置下的yml文件内容
+#vim xxx/kibana.yml
+
+vim ./config/kibana.yml
+
+# 修改如下内容并保存
+server.port: 8892
+server.host: "0.0.0.0"
+elasticsearch.hosts: ["http://localhost:8891"]	# 与elasticsearch服务绑定
+
+
+
+# 启动服务（目的地址接上。需先启动elasticsearch服务）--- 服务端
+./bin/kibana
+
+# 页面访问 --- 客户端
+http://【服务端ip】:8892/app/kibana#/dev_tools/console
+http://10.12.184.87:8892/app/kibana#/dev_tools/console
+```
+
+
+
+
+
+### 服务后台启动&脚本
+
+- 相关博文：https://www.runoob.com/linux/linux-comm-nohup.html ； https://blog.csdn.net/y601500359/article/details/105821236
+
+```shell
+# 后台启动并不挂断，输出日志到es.log
+nohup 【path】/bin/elasticsearch >es.log 2>&1 &
+nohup 【path】/bin/kibana >kibana.log 2>&1 &
+
+# 搜索elasticsearch进程
+ps aux|grep elasticsearch
+ps -ef|grep elasticsearch
+jps -ml | grep "org.elasticsearch.bootstrap.Elasticsearch"
+# 搜索进程（node进程。此方案不可靠，node不一定是kibana，推荐采取下面的方案）
+ps aux|grep node
+ps -ef|grep node
+
+# 按端口号搜索进程
+lsof -i:8892
+netstat -tunlp|grep 8892
+fuser -n tcp 8892
+
+# kill进程
+kill -9 xxx
+```
+
+- 服务启动脚本
+
+```shell
+## elasticsearch启动脚本 start-es.sh
+# kill elasticsearch
+PID2=$(jps -ml | grep "org.elasticsearch.bootstrap.Elasticsearch" | awk '{print $1}')
+
+if [ "$PID2" != "" ] ; then
+        kill -9 $PID2;
+fi
+
+nohup sh /home/work/elastic/elasticsearch/bin/elasticsearch >/home/work/elastic/elasticsearch/es.log 2>&1 &
+
+tail -f /home/work/elastic/kibana/kibana.log
+
+
+## kibana启动脚本 start-kibana.sh
+# kill kibana
+PID=$(fuser -n tcp 8892 | awk '{print $1}')
+
+if [ "$PID" != "" ] ; then
+        kill -9 $PID;
+fi
+
+nohup sh /home/work/elastic/kibana/bin/kibana >/home/work/elastic/kibana/kibana.log 2>&1 &
+
+tail -f /home/work/elastic/kibana/kibana.log
+
+
+## 调用es、kibana脚本的脚本 start-es-kibana.sh
+sh start-es.sh
+sh start-kibana.sh
+```
+
+- 服务关闭脚本：stop.sh
+
+```shell
+# kill kibana
+PID=$(fuser -n tcp 8891 | awk '{print $1}')
+
+if [ "$PID" != "" ] ; then
+        kill -9 $PID;
+fi
+
+# kill elasticsearch
+PID2=$(jps -ml | grep "org.elasticsearch.bootstrap.Elasticsearch" | awk '{print $1}')
+
+if [ "$PID2" != "" ] ; then
+        kill -9 $PID2;
+fi
+```
+
+
+
+
+
+# 有趣的尝试
+
+## @Value 的注入
+
+- 将配置赋值给 static 静态变量（注意，类需要@Component 注解）
+
+```java
+@ApiModel(value = "PluginSourceInfoVO", description = "插件渠道汇总数据信息")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Accessors(chain = true)
+@Component
+public class PluginSourceInfoVO {
+    
+    /**
+     * source前后端映射。spring 可以将配置解析成 String、List类型，但是无法将 String 解析成 Map。
+     */
+    @Value("${datacenter.statistic.sourceMap:1001:一言,1002:搜索}")
+    @JsonIgnore // 前端不展示此字段
+    private String sourceMapStr;
+
+    @JsonIgnore
+    private static Map<String, String> sourceMap = new HashMap<>();
+
+    @PostConstruct
+    private void init() {
+       
+        // 将配置值赋给静态变量
+        String[] sources = sourceMapStr.split(StringPool.COMMA);
+        for (String source : sources) {
+            String[] sourceArr = source.split(StringPool.COLON);
+            if (sourceArr.length == 2) {
+                sourceMap.put(sourceArr[0], sourceArr[1]);
+            }
+        }
+    }
+
+  
+}
+```
+
+
+
+
 
